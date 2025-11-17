@@ -2,6 +2,8 @@
 
 This is a Java-based ecommerce API project built with Spring Boot and containerized using Docker. The project provides a RESTful API for managing ecommerce-related data, including products, customers, orders, and payments. It leverages Postgres for data persistence, Kafka for event-driven communication and Redis for caching.
 
+The Goal of this Fork is to add comprehensive testing, benchmarking, and coverage analysis. It should also integrate multiple security and code-quality tools to ensure the application remains secure and free of vulnerabilities.
+
 ## Getting Started
 
 To run the API along with its dependencies (Postgres and Kafka), use the provided `docker-compose.yml` file. In the project’s root directory, run:
