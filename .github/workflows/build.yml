@@ -36,7 +36,6 @@ jobs:
           path: target/site/jacoco/
 
       - name: Commit the coverage badge
-        #if: github.ref == 'refs/heads/develop'
         run: |
           if [[ `git status --porcelain` ]]; then
             git config --global user.name 'github-actions'
