@@ -139,6 +139,8 @@
                     <excludes>
                         <exclude>**/*MapperImpl.class</exclude>
                         <exclude>**/generated/**</exclude>
+                        <exclude>**/CustomerMapper*</exclude>
+                        <exclude>**/EcommerceApplication.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>

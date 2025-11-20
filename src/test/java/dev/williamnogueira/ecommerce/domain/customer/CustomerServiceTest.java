@@ -131,6 +131,66 @@ class CustomerServiceTest {
     }
 
     @Test
+    void testPatchById_EmailUnchanged_SkipsEmailCheck() {
+        // arrange
+        customerEntity.setEmail(customerPatchDTO.email()); // same email
+
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+        when(customerMapper.toResponseDTO(customerEntity)).thenReturn(customerResponseDTO);
+
+        // act
+        var response = customerService.patchById(ID, customerPatchDTO);
+
+        // assert
+        assertThat(response).isEqualTo(customerResponseDTO);
+        verify(customerRepository).findByIdAndActiveTrue(ID);
+        verify(customerMapper).patchCustomerFromDto(customerPatchDTO, customerEntity);
+        verify(customerRepository).save(customerEntity);
+
+        verify(customerRepository, org.mockito.Mockito.never())
+                .existsByEmailIgnoreCase(customerPatchDTO.email());
+    }
+
+    @Test
+    void testPatchById_EmailChangedAndExists_ThrowsException() {
+        // arrange
+        customerEntity.setEmail("old@mail.com");
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.existsByEmailIgnoreCase(customerPatchDTO.email())).thenReturn(true);
+
+        // act & assert
+        assertThatException()
+                .isThrownBy(() -> customerService.patchById(ID, customerPatchDTO))
+                .isInstanceOf(CustomerAlreadyExistsWithEmail.class)
+                .withMessageContaining(String.format(CUSTOMER_ALREADY_EXISTS_WITH_EMAIL, customerPatchDTO.email()));
+
+        verify(customerRepository).existsByEmailIgnoreCase(customerPatchDTO.email());
+        verify(customerRepository, org.mockito.Mockito.never()).save(customerEntity);
+    }
+
+    @Test
+    void testPatchById_EmailChangedAndNotExists_PatchesAndSaves() {
+        // arrange
+        customerEntity.setEmail("different@mail.com");
+
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.existsByEmailIgnoreCase(customerPatchDTO.email())).thenReturn(false);
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+        when(customerMapper.toResponseDTO(customerEntity)).thenReturn(customerResponseDTO);
+
+        // act
+        var response = customerService.patchById(ID, customerPatchDTO);
+
+        // assert
+        assertThat(response).isEqualTo(customerResponseDTO);
+        verify(customerRepository).existsByEmailIgnoreCase(customerPatchDTO.email());
+        verify(customerMapper).patchCustomerFromDto(customerPatchDTO, customerEntity);
+        verify(customerRepository).save(customerEntity);
+        verify(customerMapper).toResponseDTO(customerEntity);
+    }
+
+    @Test
     void testUpdateById() {
         // arrange
         when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
@@ -142,6 +202,67 @@ class CustomerServiceTest {
 
         // assert
         assertThat(response).isNotNull().isEqualTo(customerResponseDTO);
+        verify(customerRepository).save(customerEntity);
+        verify(customerMapper).toResponseDTO(customerEntity);
+    }
+
+    @Test
+    void testUpdateById_EmailUnchanged_SkipsEmailCheck() {
+        // arrange
+        customerEntity.setEmail(customerRequestDTO.email()); // same email as request
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+        when(customerMapper.toResponseDTO(customerEntity)).thenReturn(customerResponseDTO);
+
+        // act
+        var response = customerService.updateById(ID, customerRequestDTO);
+
+        // assert
+        assertThat(response).isEqualTo(customerResponseDTO);
+
+        verify(customerRepository).findByIdAndActiveTrue(ID);
+        verify(customerRepository).save(customerEntity);
+        verify(customerMapper).toResponseDTO(customerEntity);
+
+        // KEY: existence check must NOT be called
+        verify(customerRepository, org.mockito.Mockito.never())
+                .existsByEmailIgnoreCase(customerRequestDTO.email());
+    }
+
+    @Test
+    void testUpdateById_EmailChangedAndExists_ThrowsException() {
+        // arrange
+        customerEntity.setEmail("old@mail.com");
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.existsByEmailIgnoreCase(customerRequestDTO.email())).thenReturn(true);
+
+        // act & assert
+        assertThatException()
+                .isThrownBy(() -> customerService.updateById(ID, customerRequestDTO))
+                .isInstanceOf(CustomerAlreadyExistsWithEmail.class)
+                .withMessageContaining(String.format(CUSTOMER_ALREADY_EXISTS_WITH_EMAIL, customerRequestDTO.email()));
+
+        verify(customerRepository).existsByEmailIgnoreCase(customerRequestDTO.email());
+        verify(customerRepository, org.mockito.Mockito.never()).save(customerEntity);
+    }
+
+    @Test
+    void testUpdateById_EmailChangedAndNotExists_UpdatesAndSaves() {
+        // arrange
+        customerEntity.setEmail("different@mail.com");
+
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.existsByEmailIgnoreCase(customerRequestDTO.email())).thenReturn(false);
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+        when(customerMapper.toResponseDTO(customerEntity)).thenReturn(customerResponseDTO);
+
+        // act
+        var response = customerService.updateById(ID, customerRequestDTO);
+
+        // assert
+        assertThat(response).isEqualTo(customerResponseDTO);
+
+        verify(customerRepository).existsByEmailIgnoreCase(customerRequestDTO.email());
         verify(customerRepository).save(customerEntity);
         verify(customerMapper).toResponseDTO(customerEntity);
     }
@@ -187,5 +308,58 @@ class CustomerServiceTest {
                 .isInstanceOf(CustomerNotFoundException.class)
                 .withMessageContaining(String.format(CUSTOMER_NOT_FOUND_WITH_ID, ID));
         verify(customerRepository).findByIdAndActiveTrue(ID);
+    }
+
+    @Test
+    void updateEntityFields_ActiveNull_DoesNotOverwriteActive() {
+        // arrange
+        customerEntity.setActive(true);
+
+        CustomerRequestDTO dto = new CustomerRequestDTO(
+                "New Name",
+                "new@mail.com",
+                "123456",
+                customerRequestDTO.address(),
+                null
+        );
+
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+
+        // act
+        customerService.updateById(ID, dto);
+
+        // assert: active must NOT change
+        assertThat(customerEntity.getActive()).isTrue();
+
+        verify(customerRepository).save(customerEntity);
+    }
+
+
+    @Test
+    void updateEntityFields_ActiveNotNull_OverwritesActive() {
+        // arrange
+        customerEntity.setActive(false);
+
+        CustomerRequestDTO dto = new CustomerRequestDTO(
+                "New Name",
+                "new@mail.com",
+                "123456",
+                customerRequestDTO.address(),
+                true
+        );
+
+        when(customerRepository.findByIdAndActiveTrue(ID)).thenReturn(Optional.of(customerEntity));
+        when(customerRepository.existsByEmailIgnoreCase(dto.email())).thenReturn(false);
+        when(customerRepository.save(customerEntity)).thenReturn(customerEntity);
+        when(customerMapper.toResponseDTO(customerEntity)).thenReturn(customerResponseDTO);
+
+        // act
+        customerService.updateById(ID, dto);
+
+        // assert: active must change
+        assertThat(customerEntity.getActive()).isTrue();
+
+        verify(customerRepository).save(customerEntity);
     }
 }
