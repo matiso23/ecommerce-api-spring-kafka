@@ -199,6 +199,15 @@
                     <targetTests>
                         <param>dev.williamnogueira.*</param>
                     </targetTests>
+                    <excludedClasses>
+                        <param>*.**MapperImpl</param>
+                        <param>*.CustomerMapper</param>
+                        <param>*.PageableConfig</param>
+                        <param>*.EcommerceApplication</param>
+                    </excludedClasses>
+                    <avoidCallsTo>
+                        <avoidCall>org.slf4j</avoidCall>
+                    </avoidCallsTo>
                     <threads>4</threads>
                     <outputFormats>
                         <param>HTML</param>
