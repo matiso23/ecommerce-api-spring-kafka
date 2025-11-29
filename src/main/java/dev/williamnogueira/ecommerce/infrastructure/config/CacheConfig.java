@@ -1,6 +1,5 @@
 package dev.williamnogueira.ecommerce.infrastructure.config;
 
-import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
@@ -19,12 +18,10 @@ import java.time.Duration;
 public class CacheConfig {
 
     @Setter
-    @Getter
     @Value("${redis.host}")
     private String redisHost;
 
     @Setter
-    @Getter
     @Value("${redis.port}")
     private int redisPort;
 
