@@ -19,14 +19,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
 import static dev.williamnogueira.ecommerce.utils.ProductTestUtils.createProductEntity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartEntity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartRequestDTO;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartRequestDTOWithInvalidQuantity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartResponseDTO;
+import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.*;
 import static dev.williamnogueira.ecommerce.utils.TestConstants.ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
@@ -79,12 +77,16 @@ class ShoppingCartServiceTest {
         when(mapper.toResponseDTO(shoppingCartEntity)).thenReturn(shoppingCartResponseDTO);
 
         // act
+        BigDecimal beforeTotal = shoppingCartEntity.getTotalPrice();
+
         var response = shoppingCartService.addToCart(String.valueOf(ID), shoppingCartRequestDTO);
 
         // assert
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
         verify(shoppingCartRepository).findByCustomerId(ID);
         verify(productService).getEntity(productEntity.getId());
+        verify(productService).subtractStockQuantity(productEntity.getId(), shoppingCartRequestDTO.quantity());
+        assertThat(shoppingCartEntity.getTotalPrice()).isNotEqualTo(beforeTotal);
     }
 
     @Test
@@ -104,6 +106,7 @@ class ShoppingCartServiceTest {
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
         verify(shoppingCartRepository).findByCustomerId(ID);
         verify(productService).getEntity(productEntity.getId());
+        assertThat(shoppingCartEntity.getItems()).hasSize(1);
     }
 
     @Test
@@ -128,9 +131,16 @@ class ShoppingCartServiceTest {
 
         // get an existing item and prepare a request with quantity less than current quantity
         ShoppingCartItemEntity existingItem = shoppingCartEntity.getItems().get(0);
+
+        // make sure quantity > 1 so removing changes total price
+        existingItem.setQuantity(3);
+        existingItem.getProduct().setPrice(new BigDecimal("10.00"));
+
         int originalQty = existingItem.getQuantity();
         UUID productId = existingItem.getProduct().getId();
-        int removeQty = Math.max(1, originalQty - 1); // ensure < originalQty
+        int removeQty = 1;
+
+        BigDecimal oldTotal = shoppingCartEntity.getTotalPrice();
 
         ShoppingCartRequestDTO partialRemoveRequest = new ShoppingCartRequestDTO(productId, removeQty);
 
@@ -139,9 +149,14 @@ class ShoppingCartServiceTest {
 
         // assert
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
-        // item should remain in cart with reduced quantity
+
+        // quantity should decrease
         assertThat(existingItem.getQuantity()).isEqualTo(originalQty - removeQty);
         verify(shoppingCartRepository).findByCustomerId(ID);
+
+        // now total should change
+        assertThat(shoppingCartEntity.getTotalPrice()).isNotEqualTo(oldTotal);
+
         verify(productService).addStockById(productId, removeQty);
         // delete should not be called
         verify(shoppingCartItemService, never()).delete(any());
