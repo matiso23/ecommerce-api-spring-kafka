@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
+import static org.mockito.Mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -19,7 +20,6 @@ import static dev.williamnogueira.ecommerce.infrastructure.constants.ErrorMessag
 import static dev.williamnogueira.ecommerce.utils.TestConstants.ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AddressServiceTest {
@@ -54,8 +54,10 @@ class AddressServiceTest {
 
     @Test
     void testCreate() {
+        // arrange
         when(customerService.getEntity(addressRequestDTO.customer())).thenReturn(customerEntity);
 
+        // act
         AddressEntity newAddressEntity = createAddressEntity();
         when(addressMapper.toEntity(addressRequestDTO)).thenReturn(newAddressEntity);
 
@@ -64,6 +66,7 @@ class AddressServiceTest {
 
         var response = addressService.create(addressRequestDTO);
 
+        // assert
         assertThat(response).isNotNull().isEqualTo(addressResponseDTO);
 
         verify(addressRepository).save(addressCaptor.capture());
@@ -77,6 +80,7 @@ class AddressServiceTest {
 
     @Test
     void testUpdateById() {
+        // arrange
         AddressEntity existingEntity = new AddressEntity();
         existingEntity.setId(ID);
         existingEntity.setStreet("OLD_STREET");
@@ -97,8 +101,10 @@ class AddressServiceTest {
 
         when(addressMapper.toResponseDTO(any(AddressEntity.class))).thenReturn(addressResponseDTO);
 
+        // act
         var response = addressService.updateById(ID, addressRequestDTO);
 
+        // assert
         assertThat(response).isNotNull().isEqualTo(addressResponseDTO);
 
         verify(addressRepository).save(addressCaptor.capture());
@@ -118,6 +124,7 @@ class AddressServiceTest {
 
     @Test
     void testUpdateById_ShouldFailIfAnyFieldNotSet() {
+        // arrange
         AddressEntity existingEntity = createAddressEntity();
 
         when(addressRepository.findById(ID)).thenReturn(Optional.of(existingEntity));
@@ -125,8 +132,10 @@ class AddressServiceTest {
         when(addressRepository.save(any(AddressEntity.class))).thenReturn(existingEntity);
         when(addressMapper.toResponseDTO(existingEntity)).thenReturn(addressResponseDTO);
 
+        // act
         var response = addressService.updateById(ID, addressRequestDTO);
 
+        // assert
         assertThat(response).isNotNull();
 
         verify(addressRepository).save(addressCaptor.capture());
@@ -146,18 +155,23 @@ class AddressServiceTest {
 
     @Test
     void testGetEntity() {
+        // arrange
         when(addressRepository.findById(ID)).thenReturn(Optional.of(addressEntity));
 
+        // act
         var response = addressService.getEntity(ID);
 
+        // assert
         assertThat(response).isNotNull().isEqualTo(addressEntity);
         verify(addressRepository).findById(ID);
     }
 
     @Test
     void testGetEntityDoesNotFindEntity() {
+        // arrange
         when(addressRepository.findById(ID)).thenReturn(Optional.empty());
 
+        // act & assert
         assertThatException()
                 .isThrownBy(() -> addressService.getEntity(ID))
                 .isInstanceOf(AddressNotFoundException.class)
