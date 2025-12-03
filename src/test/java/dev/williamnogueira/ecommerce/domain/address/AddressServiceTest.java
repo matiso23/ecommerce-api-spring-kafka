@@ -77,24 +77,25 @@ class AddressServiceTest {
 
     @Test
     void testUpdateById() {
-        AddressEntity existingEntity = createAddressEntity();
+        AddressEntity existingEntity = new AddressEntity();
+        existingEntity.setId(ID);
+        existingEntity.setStreet("OLD_STREET");
+        existingEntity.setNumber("999");
+        existingEntity.setNeighborhood("OLD_NEIGH");
+        existingEntity.setCity("OLD_CITY");
+        existingEntity.setState("OLD_STATE");
+        existingEntity.setCountry("OLD_COUNTRY");
+        existingEntity.setZipCode("00000");
+        existingEntity.setType(AddressTypeEnum.BILLING);
+        existingEntity.setAdditionalInfo("OLD_INFO");
+        existingEntity.setCustomer(new CustomerEntity());
 
         when(addressRepository.findById(ID)).thenReturn(Optional.of(existingEntity));
         when(customerService.getEntity(addressRequestDTO.customer())).thenReturn(customerEntity);
 
-        AddressEntity updatedEntity = createAddressEntity();
-        updatedEntity.setCustomer(customerEntity);
-        updatedEntity.setStreet(addressRequestDTO.street());
-        updatedEntity.setNumber(addressRequestDTO.number());
-        updatedEntity.setZipCode(addressRequestDTO.zipCode());
-        updatedEntity.setCity(addressRequestDTO.city());
-        updatedEntity.setCountry(addressRequestDTO.country());
-        updatedEntity.setNeighborhood(addressRequestDTO.neighborhood());
-        updatedEntity.setType(addressEntity.getType());
-        updatedEntity.setAdditionalInfo(addressRequestDTO.additionalInfo());
+        when(addressRepository.save(any(AddressEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        when(addressRepository.save(any(AddressEntity.class))).thenReturn(updatedEntity);
-        when(addressMapper.toResponseDTO(updatedEntity)).thenReturn(addressResponseDTO);
+        when(addressMapper.toResponseDTO(any(AddressEntity.class))).thenReturn(addressResponseDTO);
 
         var response = addressService.updateById(ID, addressRequestDTO);
 
@@ -113,11 +114,6 @@ class AddressServiceTest {
         assertThat(savedEntity.getZipCode()).isEqualTo(addressRequestDTO.zipCode());
         assertThat(savedEntity.getType()).isEqualTo(AddressTypeEnum.valueOf(addressRequestDTO.type()));
         assertThat(savedEntity.getAdditionalInfo()).isEqualTo(addressRequestDTO.additionalInfo());
-
-        verify(addressRepository).findById(ID);
-        verify(customerService).getEntity(addressRequestDTO.customer());
-        verify(addressRepository).save(any(AddressEntity.class));
-        verify(addressMapper).toResponseDTO(updatedEntity);
     }
 
     @Test
