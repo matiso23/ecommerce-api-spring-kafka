@@ -5,11 +5,10 @@ import dev.williamnogueira.ecommerce.domain.address.dto.AddressResponseDTO;
 import dev.williamnogueira.ecommerce.domain.address.exceptions.AddressNotFoundException;
 import dev.williamnogueira.ecommerce.domain.customer.CustomerService;
 import dev.williamnogueira.ecommerce.domain.customer.CustomerEntity;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -20,8 +19,7 @@ import static dev.williamnogueira.ecommerce.infrastructure.constants.ErrorMessag
 import static dev.williamnogueira.ecommerce.utils.TestConstants.ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AddressServiceTest {
@@ -38,13 +36,16 @@ class AddressServiceTest {
     @InjectMocks
     private AddressService addressService;
 
-    static AddressEntity addressEntity;
-    static AddressResponseDTO addressResponseDTO;
-    static AddressRequestDTO addressRequestDTO;
-    static CustomerEntity customerEntity;
+    @Captor
+    private ArgumentCaptor<AddressEntity> addressCaptor;
 
-    @BeforeAll
-    static void setUp() {
+    private AddressEntity addressEntity;
+    private AddressResponseDTO addressResponseDTO;
+    private AddressRequestDTO addressRequestDTO;
+    private CustomerEntity customerEntity;
+
+    @BeforeEach
+    void setUp() {
         addressEntity = createAddressEntity();
         addressRequestDTO = createAddressRequestDTO();
         addressResponseDTO = createAddressResponseDTO();
@@ -55,34 +56,101 @@ class AddressServiceTest {
     void testCreate() {
         // arrange
         when(customerService.getEntity(addressRequestDTO.customer())).thenReturn(customerEntity);
-        when(addressMapper.toEntity(addressRequestDTO)).thenReturn(addressEntity);
-        when(addressRepository.save(addressEntity)).thenReturn(addressEntity);
-        when(addressMapper.toResponseDTO(addressEntity)).thenReturn(addressResponseDTO);
 
         // act
+        AddressEntity newAddressEntity = createAddressEntity();
+        when(addressMapper.toEntity(addressRequestDTO)).thenReturn(newAddressEntity);
+
+        when(addressRepository.save(any(AddressEntity.class))).thenReturn(newAddressEntity);
+        when(addressMapper.toResponseDTO(newAddressEntity)).thenReturn(addressResponseDTO);
+
         var response = addressService.create(addressRequestDTO);
 
         // assert
         assertThat(response).isNotNull().isEqualTo(addressResponseDTO);
-        verify(addressRepository).save(addressEntity);
+
+        verify(addressRepository).save(addressCaptor.capture());
+        AddressEntity savedEntity = addressCaptor.getValue();
+        assertThat(savedEntity.getCustomer()).isEqualTo(customerEntity);
+
+        verify(customerService).getEntity(addressRequestDTO.customer());
         verify(addressMapper).toEntity(addressRequestDTO);
-        verify(addressMapper).toResponseDTO(addressEntity);
+        verify(addressMapper).toResponseDTO(newAddressEntity);
     }
 
     @Test
     void testUpdateById() {
         // arrange
-        when(addressRepository.findById(ID)).thenReturn(Optional.of(addressEntity));
-        when(addressRepository.save(addressEntity)).thenReturn(addressEntity);
-        when(addressMapper.toResponseDTO(addressEntity)).thenReturn(addressResponseDTO);
+        AddressEntity existingEntity = new AddressEntity();
+        existingEntity.setId(ID);
+        existingEntity.setStreet("OLD_STREET");
+        existingEntity.setNumber("999");
+        existingEntity.setNeighborhood("OLD_NEIGH");
+        existingEntity.setCity("OLD_CITY");
+        existingEntity.setState("OLD_STATE");
+        existingEntity.setCountry("OLD_COUNTRY");
+        existingEntity.setZipCode("00000");
+        existingEntity.setType(AddressTypeEnum.BILLING);
+        existingEntity.setAdditionalInfo("OLD_INFO");
+        existingEntity.setCustomer(new CustomerEntity());
+
+        when(addressRepository.findById(ID)).thenReturn(Optional.of(existingEntity));
+        when(customerService.getEntity(addressRequestDTO.customer())).thenReturn(customerEntity);
+
+        when(addressRepository.save(any(AddressEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(addressMapper.toResponseDTO(any(AddressEntity.class))).thenReturn(addressResponseDTO);
 
         // act
         var response = addressService.updateById(ID, addressRequestDTO);
 
         // assert
         assertThat(response).isNotNull().isEqualTo(addressResponseDTO);
-        verify(addressRepository).save(addressEntity);
-        verify(addressMapper).toResponseDTO(addressEntity);
+
+        verify(addressRepository).save(addressCaptor.capture());
+        AddressEntity savedEntity = addressCaptor.getValue();
+
+        assertThat(savedEntity.getCustomer()).isEqualTo(customerEntity);
+        assertThat(savedEntity.getStreet()).isEqualTo(addressRequestDTO.street());
+        assertThat(savedEntity.getNumber()).isEqualTo(addressRequestDTO.number());
+        assertThat(savedEntity.getNeighborhood()).isEqualTo(addressRequestDTO.neighborhood());
+        assertThat(savedEntity.getCity()).isEqualTo(addressRequestDTO.city());
+        assertThat(savedEntity.getState()).isEqualTo(addressRequestDTO.state());
+        assertThat(savedEntity.getCountry()).isEqualTo(addressRequestDTO.country());
+        assertThat(savedEntity.getZipCode()).isEqualTo(addressRequestDTO.zipCode());
+        assertThat(savedEntity.getType()).isEqualTo(AddressTypeEnum.valueOf(addressRequestDTO.type()));
+        assertThat(savedEntity.getAdditionalInfo()).isEqualTo(addressRequestDTO.additionalInfo());
+    }
+
+    @Test
+    void testUpdateById_ShouldFailIfAnyFieldNotSet() {
+        // arrange
+        AddressEntity existingEntity = createAddressEntity();
+
+        when(addressRepository.findById(ID)).thenReturn(Optional.of(existingEntity));
+        when(customerService.getEntity(addressRequestDTO.customer())).thenReturn(customerEntity);
+        when(addressRepository.save(any(AddressEntity.class))).thenReturn(existingEntity);
+        when(addressMapper.toResponseDTO(existingEntity)).thenReturn(addressResponseDTO);
+
+        // act
+        var response = addressService.updateById(ID, addressRequestDTO);
+
+        // assert
+        assertThat(response).isNotNull();
+
+        verify(addressRepository).save(addressCaptor.capture());
+        AddressEntity savedEntity = addressCaptor.getValue();
+
+        assertThat(savedEntity.getCustomer()).isEqualTo(customerEntity);
+        assertThat(savedEntity.getStreet()).isEqualTo(addressRequestDTO.street());
+        assertThat(savedEntity.getNumber()).isEqualTo(addressRequestDTO.number());
+        assertThat(savedEntity.getNeighborhood()).isEqualTo(addressRequestDTO.neighborhood());
+        assertThat(savedEntity.getCity()).isEqualTo(addressRequestDTO.city());
+        assertThat(savedEntity.getState()).isEqualTo(addressRequestDTO.state());
+        assertThat(savedEntity.getCountry()).isEqualTo(addressRequestDTO.country());
+        assertThat(savedEntity.getZipCode()).isEqualTo(addressRequestDTO.zipCode());
+        assertThat(savedEntity.getType()).isEqualTo(AddressTypeEnum.valueOf(addressRequestDTO.type()));
+        assertThat(savedEntity.getAdditionalInfo()).isEqualTo(addressRequestDTO.additionalInfo());
     }
 
     @Test
