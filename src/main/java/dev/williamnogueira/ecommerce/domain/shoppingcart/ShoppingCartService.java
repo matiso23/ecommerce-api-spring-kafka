@@ -100,6 +100,47 @@ public class ShoppingCartService {
                 .orElseThrow(() -> new ShoppingCartNotFoundException(String.format(SHOPPING_CART_NOT_FOUND_WITH_ID, id)));
     }
 
+    /*@
+      @ requires request != null;
+      @ requires cart != null;
+      @ requires product != null;
+      @ requires request.quantity() > 0;
+      @
+      @ // Product must exist in cart after execution
+      @ ensures (\exists ShoppingCartItemEntity i;
+      @             cart.getItems().contains(i) &&
+      @             i.getProduct().getId().equals(product.getId()));
+      @
+      @ // If item did not exist before, it is newly added
+      @ ensures
+      @     (!(\exists ShoppingCartItemEntity e;
+      @             \old(cart.getItems()).contains(e) &&
+      @             e.getProduct().getId().equals(product.getId())))
+      @     ==>
+      @     (cart.getItems().size() == \old(cart.getItems().size()) + 1);
+      @
+      @ // If item existed before, only its quantity increases
+      @ ensures
+      @     (\exists ShoppingCartItemEntity oldItem;
+      @         \old(cart.getItems()).contains(oldItem) &&
+      @         oldItem.getProduct().getId().equals(product.getId()))
+      @     ==>
+      @     (\exists ShoppingCartItemEntity newItem;
+      @         cart.getItems().contains(newItem) &&
+      @         newItem.getProduct().getId().equals(product.getId()) &&
+      @         newItem.getQuantity() ==
+      @             \old((\exists ShoppingCartItemEntity oldItem2;
+      @                     \old(cart.getItems()).contains(oldItem2) &&
+      @                     oldItem2.getProduct().getId().equals(product.getId())
+      @                 ? oldItem2.getQuantity() : 0))
+      @         + request.quantity());
+      @
+      @ // Quantity must always be strictly positive afterwards
+      @ ensures (\exists ShoppingCartItemEntity i;
+      @             cart.getItems().contains(i) &&
+      @             i.getProduct().getId().equals(product.getId()) &&
+      @             i.getQuantity() > 0);
+      @*/
     private void buildCartItems(ShoppingCartRequestDTO request, ShoppingCartEntity cart, ProductEntity product) {
         Optional<ShoppingCartItemEntity> existingItemOpt = cart.getItems().stream()
                 .filter(i -> i.getProduct().getId().equals(product.getId()))
@@ -120,10 +161,41 @@ public class ShoppingCartService {
         }
     }
 
+    /*@
+      @ requires cart != null;
+      @ requires cart.getItems() != null;
+      @
+      @ // Each item must be well-formed
+      @ requires (\forall int i;
+      @            0 <= i && i < cart.getItems().size();
+      @            cart.getItems().get(i) != null &&
+      @            cart.getItems().get(i).getPriceAtAddedTime() != null &&
+      @            cart.getItems().get(i).getQuantity() >= 0 );
+      @
+      @ // After execution, totalPrice is not null
+      @ ensures cart.getTotalPrice() != null;
+      @
+      @ // totalPrice equals computeTotalPrice(cart)
+      @ ensures cart.getTotalPrice().equals(
+      @             computeTotalPrice(cart)
+      @         );
+      @*/
     private void updateTotalPrice(ShoppingCartEntity cart) {
         var totalPrice = cart.getItems().stream()
                 .map(item -> item.getPriceAtAddedTime().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         cart.setTotalPrice(totalPrice);
     }
+
+    /*@
+      @ pure model BigDecimal computeTotalPrice(ShoppingCartEntity cart) {
+      @     BigDecimal sum = BigDecimal.ZERO;
+      @     for (int i = 0; i < cart.getItems().size(); i++) {
+      @         var it = cart.getItems().get(i);
+      @         sum = sum.add(it.getPriceAtAddedTime()
+      @                        .multiply(BigDecimal.valueOf(it.getQuantity())));
+      @     }
+      @     return sum;
+      @ }
+      @*/
 }
