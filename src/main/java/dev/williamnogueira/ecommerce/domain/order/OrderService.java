@@ -33,11 +33,20 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderProducer orderProducer;
 
+    /*@
+      @ requires id != null;
+      @ ensures \result != null;
+      @*/
     @Transactional(readOnly = true)
     public OrderResponseDTO findById(UUID id) {
         return orderMapper.toResponseDTO(getEntity(id));
     }
 
+    /*@
+      @ requires customerId != null;
+      @ // If execution completes normally, the result is not null
+      @ ensures \result != null;
+      @*/
     @Transactional
     public OrderResponseDTO purchaseShoppingCart(UUID customerId) {
         var shoppingCart = shoppingCartService.findByCustomerId(customerId);
@@ -58,6 +67,10 @@ public class OrderService {
         return orderMapper.toResponseDTO(order);
     }
 
+    /*@
+      @ requires id != null;
+      @ requires status != null;
+      @*/
     @Transactional
     public void updateStatus(String id, OrderStatusEnum status) {
         var order = getEntity(UUID.fromString(id));
@@ -71,11 +84,35 @@ public class OrderService {
                 .map(orderMapper::toResponseDTO);
     }
 
+    /*@
+      @ requires id != null;
+      @ // If the method returns normally, the result is not null
+      @ ensures \result != null;
+      @ // If the method returns normally, the ID matches the requested ID
+      @ ensures \result.getId() != null && \result.getId().equals(id);
+      @ // Throw exception if order is not found (simulated by signals)
+      @ signals (OrderNotFoundException e) true;
+      @*/
     public OrderEntity getEntity(UUID id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(String.format(ORDER_NOT_FOUND_WITH_ID, id)));
     }
 
+    /*@
+      @ requires shoppingCart != null;
+      @ requires shoppingCart.getCustomer() != null;
+      @ requires shoppingCart.getCustomer().getAddress() != null;
+      @
+      @ // The returned address must be either SHIPPING or BILLING type
+      @ ensures \result.getType().equals(AddressTypeEnum.SHIPPING) ||
+      @         \result.getType().equals(AddressTypeEnum.BILLING);
+      @
+      @ // If we return normally, result is not null
+      @ ensures \result != null;
+      @
+      @ // If we throw an exception, it implies no suitable address was found
+      @ signals (AddressNotFoundException e) true;
+      @*/
     private AddressEntity getShippingAddress(ShoppingCartEntity shoppingCart) {
         return shoppingCart.getCustomer().getAddress().stream()
                 .filter(a -> a.getType().equals(AddressTypeEnum.SHIPPING))
@@ -86,6 +123,26 @@ public class OrderService {
                         .orElseThrow(() -> new AddressNotFoundException(ADDRESS_NOT_FOUND)));
     }
 
+    /*@
+      @ requires shoppingCart != null;
+      @ requires orderItems != null;
+      @ requires orderAddress != null;
+      @
+      @ // Ensure the built order has the correct status
+      @ ensures \result.getStatus() == OrderStatusEnum.PENDING;
+      @
+      @ // Ensure the Total Price is mapped correctly from the Cart
+      @ ensures \result.getTotalPrice() == shoppingCart.getTotalPrice();
+      @
+      @ // Ensure the Customer is mapped correctly
+      @ ensures \result.getCustomer() == shoppingCart.getCustomer();
+      @
+      @ // Ensure the Shipping Address is mapped correctly
+      @ ensures \result.getShippingAddress() == orderAddress;
+      @
+      @ // Ensure the Order Items are mapped correctly
+      @ ensures \result.getOrderItems() == orderItems;
+      @*/
     private OrderEntity buildOrder(ShoppingCartEntity shoppingCart, List<OrderItemEntity> orderItems, OrderAddressEntity orderAddress) {
         return OrderEntity.builder()
                 .customer(shoppingCart.getCustomer())
