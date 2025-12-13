@@ -52,9 +52,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=matiso23_ecommerce-api-spring-kafka \
-          -Dsonar.organization=matiso23 \
-          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+          -Dsonar.organization=${{ secrets.SONAR_ORG_KEY }} \
+          -Dsonar.host.url=https://sonarcloud.io \
           -Dsonar.branch.name=${{ github.ref_name }}
 
       # --- QUALITY GATES ---
