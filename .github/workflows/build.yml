@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Important: SonarCloud needs full git history to work
+          fetch-depth: 0
 
       # --- SECURITY STEP 1: GitGuardian (Secret Scanning) ---
       - name: GitGuardian Scan
@@ -46,7 +46,6 @@ jobs:
           snyk test --all-projects --severity-threshold=high
 
       # --- SECURITY STEP 3: SonarCloud (Code Quality & Security Hotspots) ---
-      # This replaces the standard "mvn verify" because Sonar runs during the build
       - name: Build and Analyze with SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,6 +55,7 @@ jobs:
           -Dsonar.projectKey=matiso23_ecommerce-api-spring-kafka \
           -Dsonar.organization=matiso23 \
           -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.branch.name=${{ github.ref_name }}
 
       # --- QUALITY GATES ---
       - name: Run Mutation Testing (PIT)
