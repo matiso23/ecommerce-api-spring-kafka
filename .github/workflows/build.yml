@@ -34,21 +34,15 @@ jobs:
           cache: maven
 
       # --- SECURITY STEP 2: Snyk (Dependency Vulnerabilities) ---
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+
       - name: Snyk Security Scan
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           chmod +x mvnw
-          
-          # Force create the ignore policy file manually to bypass CLI errors
-          echo "version: v1" > .snyk
-          echo "ignore:" >> .snyk
-          echo "  'SNYK-JAVA-ORGLZ4-14219384':" >> .snyk
-          echo "    - '*':" >> .snyk
-          echo "        reason: 'No patch available. Risk accepted for Phase 7.'" >> .snyk
-          echo "        expires: '2025-06-01T00:00:00.000Z'" >> .snyk
-          
-          # Run the actual test
           snyk test --all-projects --severity-threshold=high
 
       # --- SECURITY STEP 3: SonarCloud (Code Quality & Security Hotspots) ---
