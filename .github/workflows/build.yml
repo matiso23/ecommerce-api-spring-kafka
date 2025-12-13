@@ -42,6 +42,10 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           chmod +x mvnw
+          # Programmatically ignore the unpatchable LZ4 vulnerability
+          snyk ignore --id=SNYK-JAVA-ORGLZ4-14219384 --expiry=2025-06-01 --reason="No vendor patch available. Risk accepted for Phase 7."
+          
+          # Run the actual test
           snyk test --all-projects --severity-threshold=high
 
       # --- SECURITY STEP 3: SonarCloud (Code Quality & Security Hotspots) ---
