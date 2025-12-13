@@ -3,11 +3,13 @@ package dev.williamnogueira.ecommerce.domain.shoppingcart;
 import dev.williamnogueira.ecommerce.domain.customer.CustomerService;
 import dev.williamnogueira.ecommerce.domain.product.ProductEntity;
 import dev.williamnogueira.ecommerce.domain.product.ProductService;
+import dev.williamnogueira.ecommerce.domain.product.exceptions.ProductNotFoundException;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.dto.ShoppingCartRequestDTO;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.dto.ShoppingCartResponseDTO;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.exceptions.NegativeQuantityException;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.exceptions.QuantityGreaterThanAvailableException;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.exceptions.ShoppingCartNotFoundException;
+import dev.williamnogueira.ecommerce.domain.shoppingcart.shoppingcartitem.ShoppingCartItemEntity;
 import dev.williamnogueira.ecommerce.domain.shoppingcart.shoppingcartitem.ShoppingCartItemService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,18 +19,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static dev.williamnogueira.ecommerce.utils.ProductTestUtils.createProductEntity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartEntity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartRequestDTO;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartRequestDTOWithInvalidQuantity;
-import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.createShoppingCartResponseDTO;
+import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.*;
 import static dev.williamnogueira.ecommerce.utils.TestConstants.ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ShoppingCartServiceTest {
@@ -76,12 +77,16 @@ class ShoppingCartServiceTest {
         when(mapper.toResponseDTO(shoppingCartEntity)).thenReturn(shoppingCartResponseDTO);
 
         // act
+        BigDecimal beforeTotal = shoppingCartEntity.getTotalPrice();
+
         var response = shoppingCartService.addToCart(String.valueOf(ID), shoppingCartRequestDTO);
 
         // assert
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
         verify(shoppingCartRepository).findByCustomerId(ID);
         verify(productService).getEntity(productEntity.getId());
+        verify(productService).subtractStockQuantity(productEntity.getId(), shoppingCartRequestDTO.quantity());
+        assertThat(shoppingCartEntity.getTotalPrice()).isNotEqualTo(beforeTotal);
     }
 
     @Test
@@ -101,6 +106,7 @@ class ShoppingCartServiceTest {
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
         verify(shoppingCartRepository).findByCustomerId(ID);
         verify(productService).getEntity(productEntity.getId());
+        assertThat(shoppingCartEntity.getItems()).hasSize(1);
     }
 
     @Test
@@ -117,19 +123,70 @@ class ShoppingCartServiceTest {
     }
 
     @Test
-    void testRemoveProductFromShoppingCart() {
+    void testRemoveProductFromShoppingCart_ItemQuantityRemainsPositive() {
         // arrange
         when(shoppingCartRepository.findByCustomerId(ID))
                 .thenReturn(Optional.of(shoppingCartEntity));
         when(mapper.toResponseDTO(shoppingCartEntity)).thenReturn(shoppingCartResponseDTO);
 
+        // get an existing item and prepare a request with quantity less than current quantity
+        ShoppingCartItemEntity existingItem = shoppingCartEntity.getItems().get(0);
+
+        // make sure quantity > 1 so removing changes total price
+        existingItem.setQuantity(3);
+        existingItem.getProduct().setPrice(new BigDecimal("10.00"));
+
+        int originalQty = existingItem.getQuantity();
+        UUID productId = existingItem.getProduct().getId();
+        int removeQty = 1;
+
+        BigDecimal oldTotal = shoppingCartEntity.getTotalPrice();
+
+        ShoppingCartRequestDTO partialRemoveRequest = new ShoppingCartRequestDTO(productId, removeQty);
+
         // act
-        var response = shoppingCartService.removeFromCart(String.valueOf(ID), shoppingCartRequestDTO);
+        var response = shoppingCartService.removeFromCart(String.valueOf(ID), partialRemoveRequest);
 
         // assert
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
+
+        // quantity should decrease
+        assertThat(existingItem.getQuantity()).isEqualTo(originalQty - removeQty);
         verify(shoppingCartRepository).findByCustomerId(ID);
-        verify(productService).addStockById(productEntity.getId(), shoppingCartRequestDTO.quantity());
+
+        // now total should change
+        assertThat(shoppingCartEntity.getTotalPrice()).isNotEqualTo(oldTotal);
+
+        verify(productService).addStockById(productId, removeQty);
+        // delete should not be called
+        verify(shoppingCartItemService, never()).delete(any());
+    }
+
+    @Test
+    void testRemoveProductFromShoppingCart_ItemQuantityBecomesZero() {
+        // arrange
+        when(shoppingCartRepository.findByCustomerId(ID))
+                .thenReturn(Optional.of(shoppingCartEntity));
+        when(mapper.toResponseDTO(shoppingCartEntity)).thenReturn(shoppingCartResponseDTO);
+
+        // get an existing item and prepare a request that removes exactly the whole quantity
+        ShoppingCartItemEntity existingItem = shoppingCartEntity.getItems().get(0);
+        int originalQty = existingItem.getQuantity();
+        UUID productId = existingItem.getProduct().getId();
+
+        ShoppingCartRequestDTO fullRemoveRequest = new ShoppingCartRequestDTO(productId, originalQty);
+
+        // act
+        var response = shoppingCartService.removeFromCart(String.valueOf(ID), fullRemoveRequest);
+
+        // assert
+        assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
+        // item should have been removed from cart
+        assertThat(shoppingCartEntity.getItems()).doesNotContain(existingItem);
+        verify(shoppingCartRepository).findByCustomerId(ID);
+        verify(productService).addStockById(productId, originalQty);
+        // delete should be called for the removed item
+        verify(shoppingCartItemService).delete(existingItem);
     }
 
     @Test
@@ -147,6 +204,20 @@ class ShoppingCartServiceTest {
     }
 
     @Test
+    void testRemoveFromCartProductNotFoundInCart() {
+        // arrange
+        when(shoppingCartRepository.findByCustomerId(ID))
+                .thenReturn(Optional.of(shoppingCartEntity));
+        // ensure cart has no items matching request -> clear items
+        shoppingCartEntity.getItems().clear();
+
+        // act and assert
+        assertThatException()
+                .isThrownBy(() -> shoppingCartService.removeFromCart(String.valueOf(ID), shoppingCartRequestDTO))
+                .isInstanceOf(ProductNotFoundException.class);
+    }
+
+    @Test
     void testGetShoppingCartByCustomerId() {
         // arrange
         when(shoppingCartRepository.findByCustomerId(ID))
@@ -158,6 +229,17 @@ class ShoppingCartServiceTest {
 
         // assert
         assertThat(response).isNotNull().isEqualTo(shoppingCartResponseDTO);
+    }
+
+    @Test
+    void testFindByCustomerIdNotFound() {
+        // arrange
+        when(shoppingCartRepository.findByCustomerId(ID)).thenReturn(Optional.empty());
+
+        // act and assert
+        assertThatException()
+                .isThrownBy(() -> shoppingCartService.findByCustomerId(ID))
+                .isInstanceOf(ShoppingCartNotFoundException.class);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package dev.williamnogueira.ecommerce.domain.order;
 
 import dev.williamnogueira.ecommerce.domain.address.AddressTypeEnum;
+import dev.williamnogueira.ecommerce.domain.address.exceptions.AddressNotFoundException;
 import dev.williamnogueira.ecommerce.domain.order.exceptions.EmptyShoppingCartException;
 import dev.williamnogueira.ecommerce.domain.order.exceptions.OrderNotFoundException;
 import dev.williamnogueira.ecommerce.domain.order.dto.OrderResponseDTO;
@@ -20,10 +21,9 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static dev.williamnogueira.ecommerce.infrastructure.constants.ErrorMessages.*;
 import static dev.williamnogueira.ecommerce.utils.OrderTestUtils.*;
 import static dev.williamnogueira.ecommerce.utils.ShoppingCartTestUtils.*;
-import static dev.williamnogueira.ecommerce.infrastructure.constants.ErrorMessages.ORDER_NOT_FOUND_WITH_ID;
-import static dev.williamnogueira.ecommerce.infrastructure.constants.ErrorMessages.SHOPPING_CART_IS_EMPTY;
 import static dev.williamnogueira.ecommerce.utils.TestConstants.ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
@@ -161,6 +161,23 @@ class OrderServiceTest {
                 .isInstanceOf(EmptyShoppingCartException.class)
                 .withMessageContaining(SHOPPING_CART_IS_EMPTY);
         verify(shoppingCartService).findByCustomerId(shoppingCartEntity.getCustomer().getId());
+    }
+
+    @Test
+    void testPurchaseShoppingCartAddressNotFound() {
+        // Arrange: ensure cart has items but no shipping or billing address
+        shoppingCartEntity.getCustomer().setAddress(new java.util.ArrayList<>());
+
+        when(shoppingCartService.findByCustomerId(ID)).thenReturn(shoppingCartEntity);
+
+        // Act & Assert
+        assertThatException()
+                .isThrownBy(() -> orderService.purchaseShoppingCart(ID))
+                .isInstanceOf(AddressNotFoundException.class)
+                .withMessageContaining(ADDRESS_NOT_FOUND);
+
+        verify(shoppingCartService).findByCustomerId(ID);
+        verifyNoInteractions(orderRepository, orderMapper, orderProducer);
     }
 
     @Test

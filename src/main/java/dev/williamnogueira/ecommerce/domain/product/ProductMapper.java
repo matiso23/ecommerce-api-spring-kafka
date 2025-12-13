@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring", injectionStrategy = InjectionStrategy.CONSTRUCTOR)
-interface ProductMapper {
+public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "active", defaultValue = "true")

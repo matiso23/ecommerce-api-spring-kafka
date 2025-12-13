@@ -1,5 +1,6 @@
 package dev.williamnogueira.ecommerce.infrastructure.config;
 
+import org.springframework.aot.generate.Generated;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 
@@ -7,5 +8,6 @@ import static org.springframework.data.web.config.EnableSpringDataWebSupport.Pag
 
 @Configuration
 @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
+@Generated
 public class PageableConfig {
 }

@@ -36,3 +36,37 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Generated LaTeX files ###
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex*
+*.snm
+*.nav
+
+### BibTeX / Glossaries ###
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.glg
+*.glo
+*.idx
+*.ind
+*.ilg
+
+### Output ###
+*.dvi
+*.ps
+*.pdf
+
+### IDE and system files ###
+/out/
+.DS_Store
+Thumbs.db
