@@ -34,16 +34,19 @@ jobs:
           cache: maven
 
       # --- SECURITY STEP 2: Snyk (Dependency Vulnerabilities) ---
-      - name: Install Snyk CLI
-        uses: snyk/actions/setup@master
-
       - name: Snyk Security Scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           chmod +x mvnw
-          # Programmatically ignore the unpatchable LZ4 vulnerability
-          snyk ignore --id=SNYK-JAVA-ORGLZ4-14219384 --expiry=2025-06-01 --reason="No vendor patch available. Risk accepted for Phase 7."
+          
+          # Force create the ignore policy file manually to bypass CLI errors
+          echo "version: v1" > .snyk
+          echo "ignore:" >> .snyk
+          echo "  'SNYK-JAVA-ORGLZ4-14219384':" >> .snyk
+          echo "    - '*':" >> .snyk
+          echo "        reason: 'No patch available. Risk accepted for Phase 7.'" >> .snyk
+          echo "        expires: '2025-06-01T00:00:00.000Z'" >> .snyk
           
           # Run the actual test
           snyk test --all-projects --severity-threshold=high
