@@ -34,13 +34,16 @@ jobs:
           cache: maven
 
       # --- SECURITY STEP 2: Snyk (Dependency Vulnerabilities) ---
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
+
       - name: Snyk Security Scan
-        uses: snyk/actions/maven@master
-        continue-on-error: true # Setup to true so it doesn't block the build immediately (optional)
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
+        run: |
+          chmod +x mvnw
+          snyk test --all-projects --severity-threshold=high
 
       # --- SECURITY STEP 3: SonarCloud (Code Quality & Security Hotspots) ---
       # This replaces the standard "mvn verify" because Sonar runs during the build
