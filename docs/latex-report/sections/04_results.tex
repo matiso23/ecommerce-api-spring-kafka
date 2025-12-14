@@ -49,3 +49,19 @@ We successfully annotated the core service methods with JML to document invarian
 \end{itemize}
 
 While the specifications improve code readability and contract clarity, empirical verification (via \texttt{openjml --esc}) was not possible. The project's architecture—relying heavily on compile-time bytecode generation (Lombok) and runtime dependency injection (Spring)—creates an Abstract Syntax Tree (AST) that standard JML tools cannot parse without significant refactoring. Thus, the result for JML is a successful \textit{specification} effort, but a failed \textit{verification} attempt due to toolchain incompatibility.
+
+\subsection{Performance Benchmarking (JMH)}
+To complement functional correctness with operational efficiency metrics, we integrated the Java Microbenchmark Harness (JMH).
+\begin{itemize}
+    \item \textbf{Scope:} We targeted the computational core of the \texttt{domain} layer. Benchmarks were designed to test \texttt{ShoppingCartService} logic in isolation, stripping away database I/O and network latency to measure pure CPU throughput.
+    \item \textbf{Outcome:} The benchmarks successfully established a performance baseline for the application's critical paths. This allows the CI pipeline to detect performance regressions in future iterations—specifically ensuring that the addition of defensive programming checks (e.g., input validation) does not degrade system throughput.
+\end{itemize}
+
+\subsection{CI/CD \& Security Pipeline}
+To enforce dependability standards automatically, we extended the GitHub Actions pipeline to include secret detection, vulnerability scanning, and static security analysis. This phase involved creating a Docker Hub account for artifact management and configuring secure token access via Action Secrets.
+
+\begin{itemize}
+    \item \textbf{Secret Detection (GitGuardian):} A repository scan confirmed a clean history with no hardcoded credentials, validating the project's configuration management strategy.
+    \item \textbf{Vulnerability Management (Snyk):} We integrated Snyk to scan dependencies. To resolve environment isolation issues where the Docker container could not access the JDK 17 setup, we reconfigured the pipeline to execute the Snyk CLI directly on the runner. The scan initially found 13 vulnerabilities, which were mitigated by upgrading Spring Boot (3.5.3 $\rightarrow$ 3.5.6) and \texttt{commons-lang3} (3.18.0). A single vulnerability remains in \texttt{lz4-java} (v1.8.1); as this is the latest version available on Maven Central, we configured the pipeline to proceed (\texttt{continue-on-error}).
+    \item \textbf{Static Security (SonarCloud):} The analysis flagged \texttt{CorsConfig} for wildcard permissions (\texttt{/**}). This was marked as a false positive, as the headless architecture requires open API access for testing. Additionally, we hardened the supply chain by pinning 7 GitHub Action dependencies to their immutable SHA hashes rather than mutable version tags.
+\end{itemize}

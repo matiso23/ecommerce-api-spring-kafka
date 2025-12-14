@@ -30,3 +30,17 @@ In the final phase, we applied JML annotations to document the behavior of criti
     \item \textbf{Scope:} We targeted the \texttt{ShoppingCartService} and \texttt{OrderService}, defining invariants, preconditions (e.g., non-null arguments), and postconditions (e.g., total price calculations).
     \item \textbf{Constraints:} We found that the project's heavy reliance on Spring Boot and Lombok prevented the use of OpenJML's static verification (\texttt{esc}) and runtime checking. The "magic" bytecode generation of these frameworks obscures the plain Java logic required by JML tools. Therefore, JML served primarily as a formal documentation layer rather than an automated verification gate.
 \end{itemize}
+
+\subsection{Phase 5: Performance Analysis (JMH)}
+To assess the computational efficiency of the domain logic, we integrated the Java Microbenchmark Harness (JMH).
+\begin{itemize}
+    \item \textbf{Objective:} The benchmarking suite was designed to isolate core service methods from infrastructure latency (database/network), providing a baseline for throughput and execution time prior to optimization.
+\end{itemize}
+
+\subsection{Phase 6: Security Analysis \& DevSecOps}
+To enforce reliability beyond functional correctness, we integrated automated security auditing into the pipeline.
+\begin{itemize}
+    \item \textbf{Secret Detection (GitGuardian):} We integrated GitGuardian to scan the commit history for hardcoded secrets and API keys, ensuring no sensitive data was leaked into version control.
+    \item \textbf{Vulnerability Scanning (Snyk):} We deployed Snyk to analyze project dependencies. A key methodological challenge here was resolving environment isolation; we configured the scanner to run directly on the host runner rather than inside a container, ensuring it could access the correct JDK 17 context.
+    \item \textbf{Static Security (SonarCloud):} We added SonarCloud to detect security hotspots (e.g., CORS configurations). Additionally, we hardened the supply chain by transitioning GitHub Action dependencies from mutable version tags to immutable commit SHAs.
+\end{itemize}
