@@ -1,0 +1,8 @@
+The primary objective of this study was to transform a functional prototype into a robust, maintainable, and verifiable software artifact. We defined four specific dependability goals to guide our interventions:
+
+\begin{itemize}
+    \item \textbf{Reproducibility \& Stability:} The build environment must be deterministic. The original repository suffered from runtime failures due to unpinned dependencies and incompatible base images. Our goal was to ensure the application builds and launches consistently across different environments.
+    \item \textbf{Code Quality Baseline:} We aimed to establish a quantitative baseline for code quality using industry-standard static analysis tools (SpotBugs, PMD, Checkstyle) to identify potential bugs, bad practices, and style violations before applying fixes.
+    \item \textbf{Test Completeness \& Robustness:} Merely having tests is insufficient. We aimed to increase meaningful code coverage (excluding generated code) and verify the quality of the test suite itself using Mutation Testing. The goal was to ensure that tests are sensitive enough to detect real regressions.
+    \item \textbf{Behavioral Specification:} We sought to formalize the business logic of core services using the Java Modeling Language (JML). The goal was to document strict preconditions and postconditions for critical methods (e.g., \texttt{ShoppingCartService}), creating a clear contract for future development, even if full formal verification is limited by framework constraints.
+\end{itemize}

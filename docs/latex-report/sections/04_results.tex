@@ -1,0 +1,51 @@
+This section presents the quantitative data gathered from our dependability interventions, focusing on code coverage, mutation scores, and the feasibility of formal specifications in the target environment.
+
+\subsection{Static Analysis Baseline}
+The integration of SpotBugs, PMD, and Checkstyle provided an initial quality baseline. The analysis was executed via the Maven build cycle, generating XML reports for all modules.
+\begin{itemize}
+    \item \textbf{Findings:} The tools successfully categorized issues by severity (Critical, Medium, Low).
+    \item \textbf{Outcome:} These reports served as a static baseline. No automated fixes were applied at this stage to ensure that subsequent dynamic testing metrics reflected the state of the original logic rather than auto-corrected code.
+\end{itemize}
+
+\subsection{Test Coverage (JaCoCo)}
+We utilized JaCoCo to measure the effectiveness of the unit test suite. To ensure the metrics reflected relevant business logic, we configured the tool to exclude generated artifacts, specifically `*MapperImpl.class` (MapStruct implementations) and `**/generated/**` directories.
+
+\textbf{Coverage Metrics:}
+\begin{itemize}
+    \item \textbf{Line Coverage:} 48.4\%
+    \item \textbf{Branch Coverage:} 14.4\%
+\end{itemize}
+
+These results highlighted a significant gap in the testing of conditional logic (branch coverage). The analysis revealed that while the "happy path" was often tested, edge cases and error handling branches in the service layer remained largely unverified.
+
+\subsection{Mutation Testing (PiTest)}
+To assess the quality of the test suite beyond simple line execution, we applied PiTest. The initial runs identified numerous "unkillable" mutants arising from boilerplate code (e.g., Lombok builders, getters/setters). After filtering these non-semantic mutations, we focused on the domain packages.
+
+Table \ref{tab:mutation} summarizes the mutation coverage improvements achieved after extending the test suite based on the initial reports.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l c p{4cm}}
+        \toprule
+        \textbf{Package} & \textbf{Mut. Score} \\
+        \midrule
+        domain.address & 25\% $\rightarrow$ 100\% \\
+        domain.shoppingcart & 60\% $\rightarrow$ 77\% \\
+        infrastructure.aspect & 50\% \\
+        infrastructure.exceptions & 60\% \\
+        \bottomrule
+    \end{tabular}
+    \caption{Mutation Testing Results by Package}
+    \label{tab:mutation}
+\end{table}
+
+The improvement in `domain.address` (reaching 100\%) validates that value objects, often overlooked, are easy to perfect once identified. However, the `infrastructure` packages demonstrate the limitation of mutation testing when applied to framework-heavy code (Aspects/Exceptions), where mutations often result in invalid bytecode or behavior identical to the original.
+
+\subsection{Formal Specification (JML)}
+We successfully annotated the core service methods with JML to document invariants and contracts.
+\begin{itemize}
+    \item \textbf{Specification Scope:} Annotations were applied to \emph{ShoppingCartService} (method: \emph{buildCartItems}, \emph{updateTotalPrice}) and \emph{OrderService} (method: \emph{getShippingAddress}, \emph{buildOrder}).
+    \item \textbf{Verification Result:} \textit{N/A (Qualitative Only)}.
+\end{itemize}
+
+While the specifications improve code readability and contract clarity, empirical verification (via \texttt{openjml --esc}) was not possible. The project's architecture—relying heavily on compile-time bytecode generation (Lombok) and runtime dependency injection (Spring)—creates an Abstract Syntax Tree (AST) that standard JML tools cannot parse without significant refactoring. Thus, the result for JML is a successful \textit{specification} effort, but a failed \textit{verification} attempt due to toolchain incompatibility.

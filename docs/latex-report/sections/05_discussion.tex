@@ -1,0 +1,18 @@
+The process of retrofitting dependability measures onto the \emph{ecommerce-api-spring-kafka} repository revealed distinct challenges and trade-offs inherent in modern Java development.
+
+\subsection{The Framework vs. Verification Conflict}
+A major insight from this study is the friction between "developer productivity" tools and "formal verification" tools.
+\begin{itemize}
+    \item \textbf{Lombok \& JML Incompatibility:} The project utilizes Project Lombok to reduce boilerplate (getters, setters, builders). While this improves code readability, it obscures the source code from JML tools, which expect plain Java syntax. We found that formal verification (using OpenJML) is effectively impossible in a heavy-Lombok environment without delombok-ing the code first—a step that complicates the build pipeline significantly.
+    \item \textbf{Implication:} Teams must decide early: prioritize rapid prototyping (Lombok) or verifiable correctness (JML). Retrofitting verification later is cost-prohibitive.
+\end{itemize}
+
+\subsection{Mutation Testing: Signal vs. Noise}
+Our PiTest integration demonstrated that mutation testing is valuable but requires aggressive tuning.
+\begin{itemize}
+    \item \textbf{The "Noise" Problem:} Initially, framework code (AOP aspects, Exception classes) generated hundreds of unkillable mutants. For example, mutating an Exception class constructor rarely changes program behavior, leading to false negatives in the report.
+    \item \textbf{The Solution:} We found that restricting mutation testing strictly to the \texttt{domain} packages provided high-value insights (improving coverage from 60\% to 77\%), whereas running it on `infrastructure` layers was computationally expensive and analytically low-yield.
+\end{itemize}
+
+\subsection{Infrastructure as a Prerequisite}
+We observed that dependability is not just about code. The initial inability to run the application due to unpinned Docker images and Kafka versions proved that \textit{build reproducibility} is the first step of reliability. A test suite is useless if the CI pipeline cannot spin up the environment deterministically.
