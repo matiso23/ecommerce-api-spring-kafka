@@ -5,9 +5,9 @@
 
 This is a Java-based ecommerce API project built with Spring Boot and containerized using Docker. The project provides a RESTful API for managing ecommerce-related data, including products, customers, orders, and payments. It leverages Postgres for data persistence, Kafka for event-driven communication and Redis for caching.
 
-This fork documents a case study where multiple software dependability methodologies and tools were applied to an existing functional Spring Boot microservice prototype to achieve measurable quality improvements. The project's core goal was to retrofit comprehensive quality assurance, enforcing code stability, semantic test robustness, and establishing performance baselines. This was achieved using a suite of tools including static analysis (SpotBugs, PMD, Checkstyle), Code Coverage (JaCoCo), Mutation Testing (PiTest), performance profiling (JMH), and a full DevSecOps security layer (Snyk, GitGuardian, SonarCloud). The intervention successfully established a reproducible CI process, achieved 100% test coverage, and led to a critical algorithmic optimization. The study also provided insights into the trade-offs required when applying formal verification (JML) in modern, framework-heavy Java ecosystems.
-
-For detailed methodology, empirical results, and discussion, refer to the **[Full Documentation (PDF)](docs/latex-report/SoftwareDependabilityDocumentation.pdf)**.
+> This fork documents a case study where multiple software dependability methodologies and tools were applied to an existing functional Spring Boot microservice prototype to achieve measurable quality improvements. The project's core goal was to retrofit comprehensive quality assurance, enforcing code stability, semantic test robustness, and establishing performance baselines. This was achieved using a suite of tools including static analysis (SpotBugs, PMD, Checkstyle), Code Coverage (JaCoCo), Mutation Testing (PiTest), performance profiling (JMH), and a full DevSecOps security layer (Snyk, GitGuardian, SonarCloud). The intervention successfully established a reproducible CI process, achieved 100% test coverage, and led to a critical algorithmic optimization. The study also provided insights into the trade-offs required when applying formal verification (JML) in modern, framework-heavy Java ecosystems.
+> 
+> For detailed methodology, empirical results, and discussion, refer to the **[Full Documentation (PDF)](docs/latex-report/SoftwareDependabilityDocumentation.pdf)**.
 
 ## Getting Started
 
