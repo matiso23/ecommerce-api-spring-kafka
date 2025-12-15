@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pmd xmlns="http://pmd.sourceforge.net/report/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pmd.sourceforge.net/report/2.0.0 https://pmd.github.io/schema/report_2_0_0.xsd" version="7.17.0" timestamp="2025-12-15T18:36:24.543">
+<file name="/home/user/repos/ecommerce-api-spring-kafka/src/main/java/dev/williamnogueira/ecommerce/domain/shoppingcart/ShoppingCartService.java">
+<violation beginline="1" endline="129" begincolumn="1" endcolumn="3" rule="TooManyStaticImports" ruleset="Code Style" package="dev.williamnogueira.ecommerce.domain.shoppingcart" class="ShoppingCartService" externalInfoUrl="https://docs.pmd-code.org/pmd-doc-7.17.0/pmd_rules_java_codestyle.html#toomanystaticimports" priority="3">
+Too many static imports may lead to messy code
+</violation>
+</file>
+</pmd>
