@@ -19,7 +19,7 @@ We integrated three distinct static analysis tools into the Maven build lifecycl
 \subsection{Phase 3: Coverage \& Mutation Testing}
 To improve the reliability of the test suite, we used a data-driven approach.
 \begin{itemize}
-    \item \textbf{Coverage Analysis (JaCoCo):} We integrated JaCoCo to measure instruction and branch coverage. Crucially, we configured exclusions for generated code (e.g., \texttt{*MapperImpl.class}) to prevent false negatives in our metrics. The initial analysis revealed a test coverage of 48.4\% with only 14.4\% of branches tested.
+    \item \textbf{Coverage Analysis (JaCoCo):} We integrated JaCoCo to measure instruction and branch coverage. Crucially, we configured exclusions for generated code (e.g., \texttt{*MapperImpl.class}) to prevent false negatives in our metrics. The initial analysis revealed a test coverage of 79.3\% with 62.5\% of branches tested.
     \item \textbf{Test Expansion:} Based on the JaCoCo reports, we extended the unit test suite, specifically targeting uncovered branches in the domain logic.
     \item \textbf{Mutation Testing (PiTest):} We implemented PiTest to evaluate the quality of our tests. We encountered "unkillable mutants" in Lombok-generated code (e.g., Builders, Getters/Setters) and AOP aspects. Consequently, we refined our configuration to exclude boilerplate code, focusing mutation analysis on the core domain logic where semantic meaning exists.
 \end{itemize}
@@ -34,7 +34,8 @@ In the final phase, we applied JML annotations to document the behavior of criti
 \subsection{Phase 5: Performance Analysis (JMH)}
 To assess the computational efficiency of the domain logic, we integrated the Java Microbenchmark Harness (JMH).
 \begin{itemize}
-    \item \textbf{Objective:} The benchmarking suite was designed to isolate core service methods from infrastructure latency (database/network), providing a baseline for throughput and execution time prior to optimization.
+    \item \textbf{Objective:} The benchmarking suite was designed to isolate core service methods from infrastructure latency (database/network). This process served a dual purpose: providing a performance baseline for throughput and execution time, and analytically validating the efficiency of critical framework components, such as the code generation of MapStruct.
+    \item \textbf{Scope:} We established two primary benchmarks: the \texttt{ProductMapperBenchmark} to compare framework efficiency against manual mapping, and the \texttt{AddressSearchBenchmark} to identify potential algorithmic bottlenecks in the order processing logic.
 \end{itemize}
 
 \subsection{Phase 6: Security Analysis \& DevSecOps}

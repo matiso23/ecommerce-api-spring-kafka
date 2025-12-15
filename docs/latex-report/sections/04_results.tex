@@ -1,22 +1,34 @@
 This section presents the quantitative data gathered from our dependability interventions, focusing on code coverage, mutation scores, and the feasibility of formal specifications in the target environment.
 
 \subsection{Static Analysis Baseline}
-The integration of SpotBugs, PMD, and Checkstyle provided an initial quality baseline. The analysis was executed via the Maven build cycle, generating XML reports for all modules.
-\begin{itemize}
-    \item \textbf{Findings:} The tools successfully categorized issues by severity (Critical, Medium, Low).
-    \item \textbf{Outcome:} These reports served as a static baseline. No automated fixes were applied at this stage to ensure that subsequent dynamic testing metrics reflected the state of the original logic rather than auto-corrected code.
-\end{itemize}
+The integration of SpotBugs, PMD, and Checkstyle provided a quality baseline. The analysis was executed via the Maven build cycle, generating XML reports for all modules (stored in the repository in "docs/static-code-analysis-reports" folder).
+
+The most critical findings, identified by SpotBugs, concerned potential runtime dependability issues, specifically the exposure of internal mutable object representations in multiple DTOs and in the \texttt{PaymentService}. Medium-severity findings primarily related to code style and maintainability concerns, such as the use of the \texttt{DesignForExtensionCheck} by Checkstyle and excessive static imports flagged by PMD.
+
+These reports served as a static baseline. No automated fixes were applied at this stage to ensure that subsequent dynamic testing metrics reflected the state of the original logic rather than auto-corrected code.
 
 \subsection{Test Coverage (JaCoCo)}
 We utilized JaCoCo to measure the effectiveness of the unit test suite. To ensure the metrics reflected relevant business logic, we configured the tool to exclude generated artifacts, specifically `*MapperImpl.class` (MapStruct implementations) and `**/generated/**` directories.
 
-\textbf{Coverage Metrics:}
-\begin{itemize}
-    \item \textbf{Line Coverage:} 48.4\%
-    \item \textbf{Branch Coverage:} 14.4\%
-\end{itemize}
+The process was iterative: the initial JaCoCo report served as a blueprint to systematically identify and close gaps in the testing structure.
 
-These results highlighted a significant gap in the testing of conditional logic (branch coverage). The analysis revealed that while the "happy path" was often tested, edge cases and error handling branches in the service layer remained largely unverified.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Metric} & \textbf{Initial Baseline} & \textbf{Final Coverage} \\
+        \midrule
+        Line Coverage & 79.3\% & \textbf{100\%} \\
+        Branch Coverage & 62.5\% & \textbf{100\%} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Improvement in Code Coverage Metrics}
+    \label{tab:coverage_evolution}
+\end{table}
+
+The baseline revealed a significant gap in the testing of conditional logic (Branch Coverage: 62.5\%). The analysis showed that while the "happy path" was often tested, error handling and edge cases in the service layer remained largely unverified.
+
+By utilizing the initial JaCoCo output to guide the expansion of the unit test suite, we successfully addressed the missing test cases, resulting in full \textbf{100\% Line Coverage} and \textbf{100\% Branch Coverage} for the core domain packages.
 
 \subsection{Mutation Testing (PiTest)}
 To assess the quality of the test suite beyond simple line execution, we applied PiTest. The initial runs identified numerous "unkillable" mutants arising from boilerplate code (e.g., Lombok builders, getters/setters). After filtering these non-semantic mutations, we focused on the domain packages.
@@ -44,18 +56,52 @@ The improvement in `domain.address` (reaching 100\%) validates that value object
 \subsection{Formal Specification (JML)}
 We successfully annotated the core service methods with JML to document invariants and contracts.
 \begin{itemize}
-    \item \textbf{Specification Scope:} Annotations were applied to \emph{ShoppingCartService} (method: \emph{buildCartItems}, \emph{updateTotalPrice}) and \emph{OrderService} (method: \emph{getShippingAddress}, \emph{buildOrder}).
+    \item \textbf{Specification Scope:} Annotations were applied to \emph{ShoppingCartService} (methods: \emph{buildCartItems}, \emph{updateTotalPrice}) and \emph{OrderService} (methods: \emph{getShippingAddress}, \emph{buildOrder}).
     \item \textbf{Verification Result:} \textit{N/A (Qualitative Only)}.
 \end{itemize}
 
 While the specifications improve code readability and contract clarity, empirical verification (via \texttt{openjml --esc}) was not possible. The project's architecture—relying heavily on compile-time bytecode generation (Lombok) and runtime dependency injection (Spring)—creates an Abstract Syntax Tree (AST) that standard JML tools cannot parse without significant refactoring. Thus, the result for JML is a successful \textit{specification} effort, but a failed \textit{verification} attempt due to toolchain incompatibility.
 
 \subsection{Performance Benchmarking (JMH)}
-To complement functional correctness with operational efficiency metrics, we integrated the Java Microbenchmark Harness (JMH).
-\begin{itemize}
-    \item \textbf{Scope:} We targeted the computational core of the \texttt{domain} layer. Benchmarks were designed to test \texttt{ShoppingCartService} logic in isolation, stripping away database I/O and network latency to measure pure CPU throughput.
-    \item \textbf{Outcome:} The benchmarks successfully established a performance baseline for the application's critical paths. This allows the CI pipeline to detect performance regressions in future iterations—specifically ensuring that the addition of defensive programming checks (e.g., input validation) does not degrade system throughput.
-\end{itemize}
+We integrated the Java Microbenchmark Harness (JMH) to complement functional correctness with operational efficiency metrics. By stripping away database I/O and network latency, JMH measured pure CPU throughput and allowed for the validation of algorithmic choices and framework overhead.
+
+\subsubsection{Data Mapping Overhead (\texttt{ProductMapperBenchmark})}
+This benchmark quantified the runtime overhead of the code-generated MapStruct mapper compared to manual object construction.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{l c c c}
+        \toprule
+        \textbf{ID} & \textbf{Method} & \textbf{Time ($\text{ns}$)} & \textbf{Error ($\pm$)} \\
+        \midrule
+        B03 & 100x MapStruct & 2176.639 & 130.092 \\
+        B04 & 100x Manual (Base) & 2014.624 & 158.505 \\
+        \bottomrule
+    \end{tabular}
+    \caption{ProductMapperBenchmark Results (Batch Mapping)}
+    \label{tab:mapper_benchmark}
+\end{table}
+
+The results demonstrate that MapStruct introduces no significant performance overhead compared to the manual mapping baseline; the difference is within the statistical margin of error ($\approx 8\%$). The dominant time component is Object Creation and Stream Processing (approx. $2000~\text{ns}$ for $100$ items), not the mapping logic itself. This confirms that MapStruct provides strong dependability through compile-time checks without runtime performance compromise.
+
+\subsubsection{Order Service Search Logic (\texttt{AddressSearchBenchmark})}
+This benchmark compared the original implementation for finding the preferred customer address with an optimized alternative. The original logic used two separate stream passes, while the optimized version used a single \texttt{for-loop} with an early exit condition.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l c c c}
+        \toprule
+        \textbf{ID} & \textbf{Method} & \textbf{Time ($\text{ns}$)} & \textbf{Error ($\pm$)} \\
+        \midrule
+        B01 & Two-Pass Stream (Base) & 55.429 & 7.669 \\
+        B02 & Single-Pass Loop (Opt.) & 14.849 & 2.045 \\
+        \bottomrule
+    \end{tabular}
+    \caption{AddressSearchBenchmark Results (Search Optimization)}
+    \label{tab:search_benchmark}
+\end{table}
+
+The baseline two-pass stream logic (B01) was identified as a clear performance bottleneck. The optimized single-pass \texttt{for-loop} (B02) achieved a performance gain of approximately $73\%$, running roughly $3.7$ times faster. This optimization is achieved by avoiding the CPU overhead associated with list re-iteration and stream processing, leading to an actionable refactoring conclusion.
 
 \subsection{CI/CD \& Security Pipeline}
 To enforce dependability standards automatically, we extended the GitHub Actions pipeline to include secret detection, vulnerability scanning, and static security analysis. This phase involved creating a Docker Hub account for artifact management and configuring secure token access via Action Secrets.

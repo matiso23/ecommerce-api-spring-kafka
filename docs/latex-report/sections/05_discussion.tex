@@ -15,10 +15,12 @@ Our PiTest integration demonstrated that mutation testing is valuable but requir
 \end{itemize}
 
 \subsection{Performance Baselines vs. System Latency}
-The integration of JMH microbenchmarks highlighted the distinction between algorithmic efficiency and system reliability.
+The integration of JMH microbenchmarks highlighted the distinction between algorithmic efficiency and system reliability, while simultaneously revealing optimization opportunities.
+
 \begin{itemize}
-    \item \textbf{The Microbenchmark Limit:} While JMH successfully established a baseline for domain logic (e.g., cart calculations), it intentionally isolates code from database and network I/O. In a distributed microservice architecture, these I/O layers are often the primary sources of failure.
-    \item \textbf{Strategic Value:} Consequently, we found that JMH is most valuable as a regression guard for \emph{logic} changes—ensuring that new dependability checks (e.g., input validation) do not degrade CPU throughput—but it cannot substitute for end-to-end load testing.
+    \item \textbf{Algorithmic Optimization Value:} The \texttt{AddressSearchBenchmark} demonstrated that JMH is crucial for identifying high-leverage algorithmic faults that are difficult to spot through profiling of the full system stack. The subsequent refactoring led to a proven $73\%$ performance improvement in a critical order processing path.
+    \item \textbf{The Microbenchmark Limit:} Despite its value, JMH intentionally isolates code from database and network I/O. While it successfully established a baseline for domain logic, it cannot address system-level failures common in distributed architectures, where I/O latency is often the primary source of operational issues.
+    \item \textbf{Strategic Role:} JMH is therefore most valuable as a regression guard for pure \emph{logic} changes—ensuring that the addition of defensive programming or dependability checks (e.g., input validation) does not degrade CPU throughput—but it cannot substitute for end-to-end load testing.
 \end{itemize}
 
 \subsection{Infrastructure \& Supply Chain Rigor}
