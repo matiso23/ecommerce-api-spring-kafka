@@ -64,7 +64,6 @@ build/
 ### Output ###
 *.dvi
 *.ps
-*.pdf
 
 ### IDE and system files ###
 /out/

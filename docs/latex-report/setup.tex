@@ -1,0 +1,45 @@
+\AtBeginDocument{%
+    \providecommand\BibTeX{{%
+        Bib\TeX}}}
+
+\setcopyright{none}
+\copyrightyear{2025}
+\acmYear{2025}
+\acmBooktitle{Software Dependability, Salerno, Campania, Italy}
+\acmConference[Software Dependability]{Documentation}{December 2025}{Salerno, Campania, Italy}
+\acmDOI{}
+\acmISBN{}
+
+\title{Dependability analysis of a Java open-source project}
+
+\author{Matthias Gerhard}
+\email{m.gerhard@studenti.unisa.it}
+\affiliation{%
+    \institution{Università degli Studi di Salerno}
+    \city{Salerno}
+    \state{Campania}
+    \country{Italy}
+}
+
+\author{Max Timur Sönmez}
+\email{m.soenmez@studenti.unisa.it}
+\affiliation{%
+    \institution{Università degli Studi di Salerno}
+    \city{Salerno}
+    \state{Campania}
+    \country{Italy}
+}
+
+\renewcommand{\shortauthors}{M. Gerhard and M. Sönmez}
+
+\begin{abstract}
+    This paper documents the systematic hardening of an existing Spring Boot microservice application using static analysis, mutation testing, and DevSecOps integration. The intervention successfully achieved 100\% code coverage and a 73\% performance gain by optimizing a critical algorithmic bottleneck via microbenchmarks. However, the study confirmed that rigorous formal specification (JML) is incompatible with modern, Lombok-heavy architectures due to bytecode generation conflicts. We conclude by defining a pragmatic, hybrid strategy for software dependability centered on a rigorous, security-aware CI/CD pipeline.
+\end{abstract}
+
+\keywords{Software Dependability, Mutation Testing, Static Analysis, PiTest, JaCoCo, Spring Boot, JML}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[htt]{hyphenat}
+
+\newcommand{\repourl}{\texttt{ecommerce-api-spring-kafka}}

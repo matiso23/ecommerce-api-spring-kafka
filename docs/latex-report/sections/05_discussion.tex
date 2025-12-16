@@ -1,0 +1,38 @@
+The process of retrofitting dependability measures onto the \emph{ecommerce-api-spring-kafka} repository revealed distinct challenges and trade-offs inherent in modern Java development.
+
+\subsection{The Framework vs. Verification Conflict}
+A major insight from this study is the friction between ``developer productivity'' tools and ``formal verification'' tools.
+\begin{itemize}
+    \item \textbf{Lombok \& JML Incompatibility:} The project utilizes Project Lombok to reduce boilerplate (getters, setters, builders). While this improves code readability, it obscures the source code from JML tools, which expect plain Java syntax. We found that formal verification (using OpenJML) is effectively impossible in a heavy-Lombok environment without delombok-ing the code first—a step that complicates the build pipeline significantly.
+    \item \textbf{Implication:} Teams must decide early: prioritize rapid prototyping (Lombok) or verifiable correctness (JML). Retrofitting verification later is cost-prohibitive.
+\end{itemize}
+
+\subsection{Mutation Testing: Signal vs. Noise}
+Our PiTest integration demonstrated that mutation testing is valuable but requires aggressive tuning.
+\begin{itemize}
+    \item \textbf{The ``Noise'' Problem:} Initially, framework code (AOP aspects, Exception classes) generated hundreds of unkillable mutants. For example, mutating an Exception class constructor rarely changes program behavior, leading to false negatives in the report.
+    \item \textbf{The Solution:} We found that restricting mutation testing strictly to the \texttt{domain} packages provided high-value insights (improving coverage from 60\% to 77\%), whereas running it on `infrastructure` layers was computationally expensive and analytically low-yield.
+\end{itemize}
+
+\subsection{Performance Baselines vs. System Latency}
+The integration of JMH microbenchmarks highlighted the distinction between algorithmic efficiency and system reliability, while simultaneously revealing optimization opportunities.
+
+\begin{itemize}
+    \item \textbf{Algorithmic Optimization Value:} The \texttt{AddressSearchBenchmark} demonstrated that JMH is crucial for identifying high-leverage algorithmic faults that are difficult to spot through profiling of the full system stack. The subsequent refactoring led to a proven $73\%$ performance improvement in a critical order processing path.
+    \item \textbf{The Microbenchmark Limit:} Despite its value, JMH intentionally isolates code from database and network I/O. While it successfully established a baseline for domain logic, it cannot address system-level failures common in distributed architectures, where I/O latency is often the primary source of operational issues.
+    \item \textbf{Strategic Role:} JMH is therefore most valuable as a regression guard for pure \emph{logic} changes—ensuring that the addition of defensive programming or dependability checks (e.g., input validation) does not degrade CPU throughput—but it cannot substitute for end-to-end load testing.
+\end{itemize}
+
+\subsection{Infrastructure \& Supply Chain Rigor}
+We observed that dependability extends beyond source code into the build environment itself.
+\begin{itemize}
+    \item \textbf{Reproducibility:} The initial inability to run the application due to unpinned Docker images proved that build reproducibility is the prerequisite for reliability.
+    \item \textbf{Supply Chain Security:} SonarCloud analysis prompted the transition from mutable tags (e.g., \texttt{actions/checkout@v3}) to immutable commit SHAs for GitHub Actions. This mitigates the risk of supply chain attacks, ensuring that the pipeline remains dependable even if an external dependency is compromised.
+\end{itemize}
+
+\subsection{The Limits of Automated Security}
+Integrating Snyk and SonarCloud highlighted the gap between ``theoretical security'' and ``pragmatic operations.''
+\begin{itemize}
+    \item \textbf{Contextual False Positives:} SonarCloud flagged the API's open CORS policy as a critical hotspot. However, in a headless microservice architecture used for testing, this openness is a feature, not a bug. Automated tools lack the architectural context to make this distinction.
+    \item \textbf{Dependency Dead Ends:} Snyk identified a vulnerability in the \texttt{lz4-java} library (v1.8.1). However, the remediation (upgrade to v1.10.1) was impossible as Maven Central had not yet indexed the newer version. This forced a trade-off: block the pipeline for a theoretical risk, or configure a waiver (\texttt{continue-on-error}) to maintain development velocity. We chose the latter, documenting the risk rather than stalling the process.
+\end{itemize}

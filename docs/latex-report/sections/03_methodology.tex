@@ -1,0 +1,47 @@
+Our methodology followed a phased approach, starting with environmental stabilization and progressing toward advanced verification techniques.
+
+\subsection{Phase 1: Environment Stabilization \& CI}
+Before addressing the code, we stabilized the execution environment.
+\begin{itemize}
+    \item \textbf{Containerization:} We updated the Docker base image from \texttt{openjdk:17-jdk-slim} to \texttt{eclipse-temurin:17-jdk} to resolve compatibility issues with the project's build environment.
+    \item \textbf{Dependency Pinning:} The original \texttt{docker-compose.yml} used \texttt{latest} tags for Kafka and Zookeeper, causing startup failures. We pinned these services to version \texttt{3.3.1} to ensure stability.
+    \item \textbf{Continuous Integration:} We implemented a GitHub Actions workflow that triggers on every push to the \texttt{develop} branch. This pipeline executes \texttt{mvn clean verify} to enforce that the application compiles and passes all tests automatically.
+\end{itemize}
+
+\subsection{Phase 2: Static Analysis Integration}
+We integrated three distinct static analysis tools into the Maven build lifecycle to detect defects early.
+\begin{itemize}
+    \item \textbf{Tool Selection:} We employed \textbf{SpotBugs} for bug patterns, \textbf{PMD} for programming flaws, and \textbf{Checkstyle} for adherence to coding standards.
+    \item \textbf{Execution:} These tools were configured to run via \texttt{mvn verify}, generating XML reports (\texttt{checkstyle-result.xml}, \texttt{pmd.xml}, etc.).
+    \item \textbf{Strategy:} We categorized findings by severity (Critical, Medium, Low) but intentionally applied no fixes at this stage. This allowed us to preserve the original state as a baseline for measuring the impact of later testing and mutation efforts.
+\end{itemize}
+
+\subsection{Phase 3: Coverage \& Mutation Testing}
+To improve the reliability of the test suite, we used a data-driven approach.
+\begin{itemize}
+    \item \textbf{Coverage Analysis (JaCoCo):} We integrated JaCoCo to measure instruction and branch coverage. Crucially, we configured exclusions for generated code (e.g., \texttt{*MapperImpl.class}) to prevent false negatives in our metrics. The initial analysis revealed a test coverage of 79.3\% with 62.5\% of branches tested.
+    \item \textbf{Test Expansion:} Based on the JaCoCo reports, we extended the unit test suite, specifically targeting uncovered branches in the domain logic.
+    \item \textbf{Mutation Testing (PiTest):} We implemented PiTest to evaluate the quality of our tests. We encountered "unkillable mutants" in Lombok-generated code (e.g., Builders, Getters/Setters) and AOP aspects. Consequently, we refined our configuration to exclude boilerplate code, focusing mutation analysis on the core domain logic where semantic meaning exists.
+\end{itemize}
+
+\subsection{Phase 4: Formal Specification (JML)}
+In the final phase, we applied JML annotations to document the behavior of critical services.
+\begin{itemize}
+    \item \textbf{Scope:} We targeted the \texttt{ShoppingCartService} and \texttt{OrderService}, defining invariants, preconditions (e.g., non-null arguments), and postconditions (e.g., total price calculations).
+    \item \textbf{Constraints:} We found that the project's heavy reliance on Spring Boot and Lombok prevented the use of OpenJML's static verification (\texttt{esc}) and runtime checking. The "magic" bytecode generation of these frameworks obscures the plain Java logic required by JML tools. Therefore, JML served primarily as a formal documentation layer rather than an automated verification gate.
+\end{itemize}
+
+\subsection{Phase 5: Performance Analysis (JMH)}
+To assess the computational efficiency of the domain logic, we integrated the Java Microbenchmark Harness (JMH).
+\begin{itemize}
+    \item \textbf{Objective:} The benchmarking suite was designed to isolate core service methods from infrastructure latency (database/network). This process served a dual purpose: providing a performance baseline for throughput and execution time, and analytically validating the efficiency of critical framework components, such as the code generation of MapStruct.
+    \item \textbf{Scope:} We established two primary benchmarks: the \texttt{ProductMapperBenchmark} to compare framework efficiency against manual mapping, and the \texttt{AddressSearchBenchmark} to identify potential algorithmic bottlenecks in the order processing logic.
+\end{itemize}
+
+\subsection{Phase 6: Security Analysis \& DevSecOps}
+To enforce reliability beyond functional correctness, we integrated automated security auditing into the pipeline.
+\begin{itemize}
+    \item \textbf{Secret Detection (GitGuardian):} We integrated GitGuardian to scan the commit history for hardcoded secrets and API keys, ensuring no sensitive data was leaked into version control.
+    \item \textbf{Vulnerability Scanning (Snyk):} We deployed Snyk to analyze project dependencies. A key methodological challenge here was resolving environment isolation; we configured the scanner to run directly on the host runner rather than inside a container, ensuring it could access the correct JDK 17 context.
+    \item \textbf{Static Security (SonarCloud):} We added SonarCloud to detect security hotspots (e.g., CORS configurations). Additionally, we hardened the supply chain by transitioning GitHub Action dependencies from mutable version tags to immutable commit SHAs.
+\end{itemize}

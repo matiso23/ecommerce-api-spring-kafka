@@ -1,0 +1,113 @@
+This section presents the quantitative data gathered from our dependability interventions, focusing on code coverage, mutation scores, and the feasibility of formal specifications in the target environment.
+
+\subsection{Static Analysis Baseline}
+The integration of SpotBugs, PMD, and Checkstyle provided a quality baseline. The analysis was executed via the Maven build cycle, generating XML reports for all modules (stored in the repository in "docs/static-code-analysis-reports" folder).
+
+The most critical findings, identified by SpotBugs, concerned potential runtime dependability issues, specifically the exposure of internal mutable object representations in multiple DTOs and in the \texttt{PaymentService}. Medium-severity findings primarily related to code style and maintainability concerns, such as the use of the \texttt{DesignForExtensionCheck} by Checkstyle and excessive static imports flagged by PMD.
+
+These reports served as a static baseline. No automated fixes were applied at this stage to ensure that subsequent dynamic testing metrics reflected the state of the original logic rather than auto-corrected code.
+
+\subsection{Test Coverage (JaCoCo)}
+We utilized JaCoCo to measure the effectiveness of the unit test suite. To ensure the metrics reflected relevant business logic, we configured the tool to exclude generated artifacts, specifically `*MapperImpl.class` (MapStruct implementations) and `**/generated/**` directories.
+
+The process was iterative: the initial JaCoCo report served as a blueprint to systematically identify and close gaps in the testing structure.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Metric} & \textbf{Initial Baseline} & \textbf{Final Coverage} \\
+        \midrule
+        Line Coverage & 79.3\% & \textbf{100\%} \\
+        Branch Coverage & 62.5\% & \textbf{100\%} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Improvement in Code Coverage Metrics}
+    \label{tab:coverage_evolution}
+\end{table}
+
+The baseline revealed a significant gap in the testing of conditional logic (Branch Coverage: 62.5\%). The analysis showed that while the "happy path" was often tested, error handling and edge cases in the service layer remained largely unverified.
+
+By utilizing the initial JaCoCo output to guide the expansion of the unit test suite, we successfully addressed the missing test cases, resulting in full \textbf{100\% Line Coverage} and \textbf{100\% Branch Coverage} for the core domain packages.
+
+\subsection{Mutation Testing (PiTest)}
+To assess the quality of the test suite beyond simple line execution, we applied PiTest. The initial runs identified numerous "unkillable" mutants arising from boilerplate code (e.g., Lombok builders, getters/setters). After filtering these non-semantic mutations, we focused on the domain packages.
+
+Table \ref{tab:mutation} summarizes the mutation coverage improvements achieved after extending the test suite based on the initial reports.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l c p{4cm}}
+        \toprule
+        \textbf{Package} & \textbf{Mut. Score} \\
+        \midrule
+        domain.address & 25\% $\rightarrow$ 100\% \\
+        domain.shoppingcart & 60\% $\rightarrow$ 77\% \\
+        infrastructure.aspect & 50\% \\
+        infrastructure.exceptions & 60\% \\
+        \bottomrule
+    \end{tabular}
+    \caption{Mutation Testing Results by Package}
+    \label{tab:mutation}
+\end{table}
+
+The improvement in `domain.address` (reaching 100\%) validates that value objects, often overlooked, are easy to perfect once identified. However, the `infrastructure` packages demonstrate the limitation of mutation testing when applied to framework-heavy code (Aspects/Exceptions), where mutations often result in invalid bytecode or behavior identical to the original.
+
+\subsection{Formal Specification (JML)}
+We successfully annotated the core service methods with JML to document invariants and contracts.
+\begin{itemize}
+    \item \textbf{Specification Scope:} Annotations were applied to \emph{ShoppingCartService} (methods: \emph{buildCartItems}, \emph{updateTotalPrice}) and \emph{OrderService} (methods: \emph{getShippingAddress}, \emph{buildOrder}).
+    \item \textbf{Verification Result:} \textit{N/A (Qualitative Only)}.
+\end{itemize}
+
+While the specifications improve code readability and contract clarity, empirical verification (via \texttt{openjml --esc}) was not possible. The project's architecture—relying heavily on compile-time bytecode generation (Lombok) and runtime dependency injection (Spring)—creates an Abstract Syntax Tree (AST) that standard JML tools cannot parse without significant refactoring. Thus, the result for JML is a successful \textit{specification} effort, but a failed \textit{verification} attempt due to toolchain incompatibility.
+
+\subsection{Performance Benchmarking (JMH)}
+We integrated the Java Microbenchmark Harness (JMH) to complement functional correctness with operational efficiency metrics. By stripping away database I/O and network latency, JMH measured pure CPU throughput and allowed for the validation of algorithmic choices and framework overhead.
+
+\subsubsection{Data Mapping Overhead (\texttt{ProductMapperBenchmark})}
+This benchmark quantified the runtime overhead of the code-generated MapStruct mapper compared to manual object construction.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{l c c c}
+        \toprule
+        \textbf{ID} & \textbf{Method} & \textbf{Time ($\text{ns}$)} & \textbf{Error ($\pm$)} \\
+        \midrule
+        B03 & 100x MapStruct & 2176.639 & 130.092 \\
+        B04 & 100x Manual (Base) & 2014.624 & 158.505 \\
+        \bottomrule
+    \end{tabular}
+    \caption{ProductMapperBenchmark Results (Batch Mapping)}
+    \label{tab:mapper_benchmark}
+\end{table}
+
+The results demonstrate that MapStruct introduces no significant performance overhead compared to the manual mapping baseline; the difference is within the statistical margin of error ($\approx 8\%$). The dominant time component is Object Creation and Stream Processing (approx. $2000~\text{ns}$ for $100$ items), not the mapping logic itself. This confirms that MapStruct provides strong dependability through compile-time checks without runtime performance compromise.
+
+\subsubsection{Order Service Search Logic (\texttt{AddressSearchBenchmark})}
+This benchmark compared the original implementation for finding the preferred customer address with an optimized alternative. The original logic used two separate stream passes, while the optimized version used a single \texttt{for-loop} with an early exit condition.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l c c c}
+        \toprule
+        \textbf{ID} & \textbf{Method} & \textbf{Time ($\text{ns}$)} & \textbf{Error ($\pm$)} \\
+        \midrule
+        B01 & Two-Pass Stream (Base) & 55.429 & 7.669 \\
+        B02 & Single-Pass Loop (Opt.) & 14.849 & 2.045 \\
+        \bottomrule
+    \end{tabular}
+    \caption{AddressSearchBenchmark Results (Search Optimization)}
+    \label{tab:search_benchmark}
+\end{table}
+
+The baseline two-pass stream logic (B01) was identified as a clear performance bottleneck. The optimized single-pass \texttt{for-loop} (B02) achieved a performance gain of approximately $73\%$, running roughly $3.7$ times faster. This optimization is achieved by avoiding the CPU overhead associated with list re-iteration and stream processing, leading to an actionable refactoring conclusion.
+
+\subsection{CI/CD \& Security Pipeline}
+To enforce dependability standards automatically, we extended the GitHub Actions pipeline to include secret detection, vulnerability scanning, and static security analysis. This phase involved creating a Docker Hub account for artifact management and configuring secure token access via Action Secrets.
+
+\begin{itemize}
+    \item \textbf{Secret Detection (GitGuardian):} A repository scan confirmed a clean history with no hardcoded credentials, validating the project's configuration management strategy.
+    \item \textbf{Vulnerability Management (Snyk):} We integrated Snyk to scan dependencies. To resolve environment isolation issues where the Docker container could not access the JDK 17 setup, we reconfigured the pipeline to execute the Snyk CLI directly on the runner. The scan initially found 13 vulnerabilities, which were mitigated by upgrading Spring Boot (3.5.3 $\rightarrow$ 3.5.6) and \texttt{commons-lang3} (3.18.0). A single vulnerability remains in \texttt{lz4-java} (v1.8.1); as this is the latest version available on Maven Central, we configured the pipeline to proceed (\texttt{continue-on-error}).
+    \item \textbf{Static Security (SonarCloud):} The analysis flagged \texttt{CorsConfig} for wildcard permissions (\texttt{/**}). This was marked as a false positive, as the headless architecture requires open API access for testing. Additionally, we hardened the supply chain by pinning 7 GitHub Action dependencies to their immutable SHA hashes rather than mutable version tags.
+\end{itemize}

@@ -1,0 +1,15 @@
+Modern software development increasingly relies on complex microservice architectures, often utilizing robust frameworks such as Spring Boot and event-streaming platforms like Apache Kafka. While these technologies accelerate functional development, they often introduce complexity that makes rigorous quality assurance and formal verification difficult. Open-source repositories frequently demonstrate functional correctness but lack the software dependability layers—such as mutation testing, strict static analysis, and supply chain security—required for production-grade systems.
+
+This paper presents a case study on retrofitting dependability measures onto an existing open-source artifact. We selected and forked the \repourl\ repository \cite{ecommerceRepo}, a representative microservices application implementing an e-commerce backend. While the original repository provided a functional implementation of shopping cart and order processing logic, it lacked a comprehensive automated testing strategy, formal behavioral specifications, or security auditing.
+
+Our work follows a systematic approach to software hardening, addressing the following key areas:
+
+\begin{enumerate}
+    \item \textbf{Environmental Stabilization:} We addressed immediate build reproducibility issues by upgrading the Docker base image to \texttt{eclipse-temurin:17-jdk} and pinning Kafka/Zookeeper versions to resolve startup failures in the containerized environment.
+    \item \textbf{Automated Quality Gates:} We established a continuous integration (CI) pipeline using GitHub Actions to enforce build verification, unit testing, and artifact delivery (Docker Hub) on every push.
+    \item \textbf{Static Analysis \& Mutation Testing:} We integrated a suite of static analysis tools (SpotBugs, PMD, Checkstyle) to establish a quality baseline and applied Mutation Testing (PiTest) to identify and repair gaps in the test suite's semantic coverage.
+    \item \textbf{Formal Specification:} We applied Java Modeling Language (JML) annotations to core services to formalize system behavior, utilizing them as strict documentation to identify architectural constraints imposed by framework-heavy designs (e.g., Lombok).
+    \item \textbf{Performance \& Security Hardening:} We extended the dependability scope beyond functional logic by establishing performance baselines via JMH microbenchmarks and integrating a DevSecOps layer (Snyk, GitGuardian, SonarCloud) to audit dependencies and harden the software supply chain.
+\end{enumerate}
+
+The remainder of this paper details the methodology used to integrate these tools, presents the empirical metrics gathered (coverage improvements, mutation scores, vulnerability reports), and discusses the trade-offs between strict formal verification and pragmatic automation in modern Java ecosystems.
